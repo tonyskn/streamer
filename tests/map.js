@@ -3,25 +3,25 @@
          forin: true */
 /*global define: true setTimeout: true */
 
-(typeof define === "undefined" ? function ($) { $(require, exports, module) } : define)(function (require, exports, module, undefined) {
+!(typeof define === "undefined" ? function ($) { $(require, exports, module) } : define)(function (require, exports, module, undefined) {
 
 'use strict';
 
-var streamer = require('../streamer.js'),
+var streamer = require('../core.js'),
     map = streamer.map, list = streamer.list
 var test = require('./utils.js').test
 
 exports['test map empty'] = function(assert, done) {
   var empty = list()
-  var mapped = map(empty, function onEach(element) {
+  var mapped = map(function onEach(element) {
     assert.fail('mapper was executed')
-  })
+  }, empty)
   test(assert, done, mapped, [])
 }
 
 exports['test number map'] = function(assert, done) {
   var numbers = list(1, 2, 3, 4)
-  var doubled = map(numbers, function onElement(number) { return number * 2 })
+  var doubled = map(function onElement(number) { return number * 2 }, numbers)
   test(assert, done, doubled, [2, 4, 6, 8])
 }
 
@@ -30,11 +30,10 @@ exports['test map with async stream'] = function(assert, done) {
     var x = 5
     setTimeout(function onTimeout() {
       if (!x) return stop()
-      next(x--)
-      setTimeout(onTimeout, 0)
+      if (false !== next(x--)) setTimeout(onTimeout, 0)
     }, 0)
   }
-  var mapped = map(stream, function(x) { return x + 1 })
+  var mapped = map(function(x) { return x + 1 }, stream)
   test(assert, done, mapped, [ 6, 5, 4, 3, 2 ])
 }
 
@@ -43,11 +42,10 @@ exports['test map broken stream'] = function(assert, done) {
     var x = 3
     setTimeout(function onTimeout() {
       if (!x) return stop(new Error('Boom!'))
-      next(x--)
-      setTimeout(onTimeout, 0)
+      if (false !== next(x--)) setTimeout(onTimeout, 0)
     }, 0)
   }
-  var mapped = map(stream, function(x) { return x * x })
+  var mapped = map(function(x) { return x * x }, stream)
   var expected = [ 9, 4, 1]
   var actual = []
   mapped(function next(x) { actual.push(x) }, function stop(error) {
@@ -57,7 +55,27 @@ exports['test map broken stream'] = function(assert, done) {
   })
 }
 
-if (module == require.main)
-  require('test').run(exports);
+exports['test interrupt reading mapped stream'] = function(assert) {
+  var stream = list(3, 2, 1, 0)
+  var called = 0
+  var expected = [ 9, 4, 1]
+  var actual = []
+  var stops = []
+  var mapped = map(function(x) { called++; return x * x }, stream)
 
-})
+  mapped(function next(element) {
+    actual.push(element)
+    if (actual.length === 3) return false
+  }, function stop(reason) {
+    stops.push(reason)
+  })
+
+  assert.equal(stops.length, 0, 'stream is not stopped if we interrupt read')
+  assert.equal(called, expected.length, 'map is called expected times')
+  assert.deepEqual(actual, expected, 'mapped as expected')
+}
+
+if (module == require.main)
+  require('test').run(exports)
+
+});

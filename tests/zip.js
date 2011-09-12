@@ -3,11 +3,11 @@
          forin: true */
 /*global define: true setTimeout: true */
 
-(typeof define === "undefined" ? function ($) { $(require, exports, module) } : define)(function (require, exports, module, undefined) {
+!(typeof define === "undefined" ? function ($) { $(require, exports, module) } : define)(function (require, exports, module, undefined) {
 
 'use strict';
 
-var streamer = require('../streamer.js'),
+var streamer = require('../core.js'),
     zip = streamer.zip, list = streamer.list
 var test = require('./utils.js').test
 
@@ -31,8 +31,7 @@ exports['test zip sync stream with async stream'] = function(assert, done) {
     var x = 5
     setTimeout(function onTimeout() {
       if (!x) return stop()
-      next(x--)
-      setTimeout(onTimeout, 0)
+      if (false !== next(x--)) setTimeout(onTimeout, 0)
     }, 0)
   }
   var b = list('a', 'b', 'c', 'd', 'e')
@@ -53,8 +52,7 @@ exports['test zip with late error'] = function(assert, done) {
     var x = 3
     setTimeout(function onTimeout() {
       if (!x) return stop(new Error('Boom!'))
-      next(x--)
-      setTimeout(onTimeout, 0)
+      if (false !== next(x--)) setTimeout(onTimeout, 0)
     }, 0)
   }
   var letters = list('a', 'b', 'c')
@@ -72,8 +70,7 @@ exports['test zip with early error'] = function(assert, done) {
     var x = 3
     setTimeout(function onTimeout() {
       if (!x) return stop(new Error('Boom!'))
-      next(x--)
-      setTimeout(onTimeout, 0)
+      if (false !== next(x--)) setTimeout(onTimeout, 0)
     }, 0)
   }
   var letters = list('a', 'b', 'c', 'd')
@@ -91,7 +88,25 @@ exports['test zip with early error'] = function(assert, done) {
     done()
   })
 }
-if (module == require.main)
-  require('test').run(exports);
 
-})
+exports['test interrupt zipped stream'] = function(assert) {
+  var letters = list('a', 'b', 'c', 'd')
+  var numbers = list(1, 2, 3, 3, 5)
+  var zipped = zip(numbers, letters)
+  var buffer = []
+  var stopped = []
+  zipped(function onTuple(tuple) {
+    buffer.push(tuple)
+    if (buffer.length === 4) return false
+  }, function onStop(error) {
+    stopped.push(error)
+  })
+  assert.equal(stopped.length, 0, 'interrupted streams do not stop')
+  assert.deepEqual(buffer, [ [1, 'a'], [ 2, 'b' ], [ 3, 'c' ], [ 3, 'd' ] ],
+                   'stream yielded elements until it was interrupted')
+}
+
+if (module == require.main)
+  require('test').run(exports)
+
+});

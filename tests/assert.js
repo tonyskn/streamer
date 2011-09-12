@@ -3,7 +3,7 @@
          forin: true */
 /*global define: true */
 
-(typeof define === "undefined" ? function ($) { $(require, exports, module) } : define)(function (require, exports, module, undefined) {
+!(typeof define === "undefined" ? function ($) { $(require, exports, module) } : define)(function (require, exports, module, undefined) {
 
 'use strict';
 
@@ -13,7 +13,7 @@ exports.Assert = function StreamAssert() {
   assert.equalElements = function equalElements(stream, elements, message) {
   }
 }
-var list = require('../streamer.js').list
+var list = require('../core.js').list
 
 function test(assert, expected) {
   var actual = [], isStopped = false
@@ -44,5 +44,4 @@ exports['test mixed list'] = function(assert) {
 if (module == require.main)
   require('test').run(exports);
 
-})
-
+});
